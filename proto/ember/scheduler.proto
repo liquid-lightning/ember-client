@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package ember.scheduler.v1;
+
+service Scheduler {
+	rpc GetChallenge(ChallengeRequest) returns (ChallengeResponse) {}
+	rpc Register(RegistrationRequest) returns (RegistrationResponse) {}
+	rpc Recover(RecoveryRequest) returns (RecoveryResponse) {}
+	rpc GetNodeInfo(NodeInfoRequest) returns (NodeInfoResponse) {}
+	rpc ListNodes(ListNodesRequest) returns (ListNodesResponse) {}
+	rpc DeleteNode(DeleteNodeRequest) returns (DeleteNodeResponse) {}
+}
+
+enum NodePhase {
+	NODE_PHASE_UNSPECIFIED = 0;
+	NODE_PHASE_PROVISIONING = 1;
+	NODE_PHASE_RUNNING = 2;
+	NODE_PHASE_STOPPED = 3;
+	NODE_PHASE_FAILED = 4;
+	NODE_PHASE_DELETING = 5;
+}
+
+message NodeSummary {
+	string node_id = 1;
+	NodePhase phase = 2;
+	string created_at = 3;
+}
+
+message ChallengeRequest {}
+
+message ChallengeResponse {
+	bytes challenge = 1;
+}
+
+message RegistrationRequest {
+	string network = 1;
+	bytes challenge = 2;
+	bytes signature = 3;
+	bytes csr = 4;
+	string invite_code = 5;
+}
+
+message RegistrationResponse {
+	string node_id = 1;
+	string mnemonic = 2;
+	string device_cert = 3;
+	string device_key = 4;
+	string rune = 5;
+	bytes creds = 6;
+}
+
+message RecoveryRequest {
+	string mnemonic = 1;
+	bytes challenge = 2;
+	bytes signature = 3;
+	bytes csr = 4;
+}
+
+message RecoveryResponse {
+	string node_id = 1;
+	string device_cert = 2;
+	string device_key = 3;
+	string rune = 4;
+	bytes creds = 5;
+}
+
+message NodeInfoRequest {
+	string node_id = 1;
+}
+
+message NodeInfoResponse {
+	NodeSummary node = 1;
+}
+
+message ListNodesRequest {}
+
+message ListNodesResponse {
+	repeated NodeSummary nodes = 1;
+}
+
+message DeleteNodeRequest {
+	string node_id = 1;
+}
+
+message DeleteNodeResponse {}
