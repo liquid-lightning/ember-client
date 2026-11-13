@@ -7,10 +7,12 @@ use tonic::transport::ClientTlsConfig;
 
 use crate::auth::UserIdInterceptor;
 use crate::error::Error;
+use crate::node::ClnClient;
+use crate::pb::cln::node_client::NodeClient;
 use crate::pb::ember::scheduler::v1::scheduler_client::SchedulerClient as GeneratedSchedulerClient;
 use crate::Scheduler;
 
-/// Transport ember-client's generated client runs over: a shared [`Channel`]
+/// Transport ember-client's generated clients run over: a shared [`Channel`]
 /// with the `x-user-id` interceptor attached.
 pub type Transport = InterceptedService<Channel, UserIdInterceptor>;
 
@@ -20,7 +22,8 @@ pub type Transport = InterceptedService<Channel, UserIdInterceptor>;
 pub type SchedulerClient = GeneratedSchedulerClient<Transport>;
 
 /// Entry point: connects once to ember-server and hands out
-/// [`SchedulerClient`]s that share the connection and caller identity.
+/// [`SchedulerClient`]s and [`ClnClient`]s that share the connection and
+/// caller identity.
 #[derive(Clone)]
 pub struct EmberClient {
     channel: Channel,
@@ -76,10 +79,16 @@ impl EmberClient {
         GeneratedSchedulerClient::with_interceptor(self.channel.clone(), self.interceptor())
     }
 
-    /// Returns an ergonomic wrapper over [`Self::scheduler_client`] - see
-    /// [`Scheduler`].
+    /// Returns a fresh client for ember's CLN proxy (`cln.Node`), routed by
+    /// ember-server to the caller's own node, sharing this connection.
+    pub fn node_client(&self) -> ClnClient {
+        NodeClient::with_interceptor(self.channel.clone(), self.interceptor())
+    }
+
+    /// Returns an ergonomic wrapper over [`Self::scheduler_client`] and
+    /// [`Self::node_client`] - see [`Scheduler`].
     pub fn scheduler(&self) -> Scheduler {
-        Scheduler::new(self.scheduler_client())
+        Scheduler::new(self.clone())
     }
 
     fn interceptor(&self) -> UserIdInterceptor {

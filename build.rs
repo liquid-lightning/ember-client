@@ -2,6 +2,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_prost_build::configure()
         .build_server(false)
         .build_client(true)
-        .compile_protos(&["proto/ember/scheduler.proto"], &["proto/ember"])?;
+        .compile_protos(
+            &["proto/cln/node.proto", "proto/ember/scheduler.proto"],
+            &["proto/cln", "proto/ember"],
+        )?;
     Ok(())
 }
