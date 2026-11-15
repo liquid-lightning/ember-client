@@ -47,7 +47,10 @@ impl EmberClient {
     /// verify ember-server's own certificate against (ember-server's CA is
     /// deployment-specific — there's no public root to fall back to, see
     /// `ClientTlsIdentity`'s docs).
-    pub async fn connect(addr: impl Into<String>, identity: ClientTlsIdentity) -> Result<Self, Error> {
+    pub async fn connect(
+        addr: impl Into<String>,
+        identity: ClientTlsIdentity,
+    ) -> Result<Self, Error> {
         let addr = addr.into();
         let tls = ClientTlsConfig::new()
             .ca_certificate(Certificate::from_pem(identity.ca_cert_pem))
