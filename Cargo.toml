@@ -6,22 +6,20 @@ license = "Apache-2.0"
 description = "Rust client for ember: the Scheduler (node lifecycle) and CLN Node gRPC services."
 repository = "https://github.com/liquid-lightning/ember-client"
 
-[features]
-default = []
-# Enables connect_tls() (tonic's rustls backend) for talking to an
-# ember-server sitting behind TLS. Plain connect() over h2c needs none of
-# this - see ember's README: the external listener has no TLS of its own
-# today, auth is an `x-user-id` metadata header (bin/server/src/auth.rs).
-tls = ["tonic/tls-ring"]
-
 [dependencies]
-tonic = { version = "0.14", default-features = false, features = ["codegen", "channel"] }
+tonic = { version = "0.14", default-features = false, features = ["codegen", "channel", "tls-ring"] }
 tonic-prost = "0.14"
 prost = "0.14"
 thiserror = "2"
+secp256k1 = "0.29"
+hkdf = "0.12"
+sha2 = "0.10"
+rcgen = "0.14.10"
 
 [build-dependencies]
 tonic-prost-build = "0.14"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+bip39 = { version = "2", features = ["rand_core"] }
+secp256k1 = { version = "0.29", features = ["rand-std"] }

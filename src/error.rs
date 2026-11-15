@@ -11,6 +11,12 @@ pub enum Error {
     Transport(#[from] tonic::transport::Error),
     #[error(transparent)]
     Status(#[from] tonic::Status),
+    #[error("auth key error: {0}")]
+    Auth(#[from] secp256k1::Error),
+    #[error("device certificate error: {0}")]
+    Cert(#[from] rcgen::Error),
+    #[error("invalid credentials blob: {0}")]
+    InvalidCredentials(&'static str),
 }
 
 impl Error {

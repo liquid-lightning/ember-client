@@ -26,7 +26,12 @@ message NodeSummary {
 	string created_at = 3;
 }
 
-message ChallengeRequest {}
+message ChallengeRequest {
+	// The caller's auth pubkey (compressed secp256k1, 33 bytes), derived
+	// client-side from its BIP39 seed. Scopes the challenge to this
+	// identity so a signature over it can't be replayed for another.
+	bytes node_id = 1;
+}
 
 message ChallengeResponse {
 	bytes challenge = 1;
@@ -38,6 +43,14 @@ message RegistrationRequest {
 	bytes signature = 3;
 	bytes csr = 4;
 	string invite_code = 5;
+	// Compressed secp256k1 pubkey proven by `signature` over `challenge`.
+	// Stored as this node's recovery identity.
+	bytes node_id = 6;
+	// Client-generated BIP39 mnemonic. ember is custodial: the server
+	// derives the real CLN `hsm_secret` straight from this text (see
+	// `domain::mnemonic::hsm_secret_file`) rather than from `node_id`,
+	// which is a separate, ember-only auth key.
+	string mnemonic = 7;
 }
 
 message RegistrationResponse {
@@ -54,6 +67,10 @@ message RecoveryRequest {
 	bytes challenge = 2;
 	bytes signature = 3;
 	bytes csr = 4;
+	// Compressed secp256k1 pubkey proven by `signature` over `challenge`;
+	// looked up against the pubkey stored at registration to find the
+	// existing node instead of provisioning a new one.
+	bytes node_id = 5;
 }
 
 message RecoveryResponse {

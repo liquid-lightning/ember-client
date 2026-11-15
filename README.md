@@ -33,43 +33,64 @@ equivalent client for Greenlight: a [`Scheduler`] with
 (gl-client's `node::ClnClient`, here [`node::ClnClient`]) for the caller's
 own node. ember's own naming (`Scheduler`,
 `Register`/`Recover`/`GetNodeInfo`) follows gl-client's shape too (see
-`proto/ember/scheduler.proto`), though ember's trust model is custodial
-rather than client-signed, so there's no signer here, and `node()` never
-actually fails - it's `async`/fallible only to match gl-client's call
-shape.
+`proto/ember/scheduler.proto`). ember's *node* itself is custodial — the
+real CLN signing key is derived server-side from the mnemonic you register
+with, there's no commitment-signing HSM in this crate — but authentication
+to ember-server mirrors Greenlight's shape: [`auth::AuthKey`] is a
+seed-derived identity you sign a server challenge with, in exchange for a
+CA-issued device certificate, replacing a bearer token with mTLS the same
+way Greenlight's device credentials do. `Scheduler::node()` never actually
+fails - it's `async`/fallible only to match gl-client's call shape.
 
 ## Auth
 
-ember-server's auth is currently a trust-me `x-user-id` gRPC metadata header
-with no signature or token validation (see ember's
-`bin/server/src/auth.rs` - an open item on ember's side, not this crate's).
-[`EmberClient::connect`] takes an optional `user_id` and attaches it to every
-call; pass `None` for calls that don't check it (`GetChallenge`,
-`GetNodeInfo`, `DeleteNode` as of writing).
+ember-server's public listener requires mTLS: every call presents a
+certificate chaining to ember's own CA (see ember's
+`domain::ca::CertificateAuthority` and `bin/server/src/main.rs`) - there is
+no bearer token or metadata header. [`EmberClient::connect`] takes a
+[`ClientTlsIdentity`] (cert + key + the CA cert to verify the server
+against):
+
+- For `GetChallenge`/`Register`/`Recover` - before any node/device
+  certificate exists - use the baked-in pre-auth "app" identity,
+  [`default_app_identity`] (backed by `.resources/tls/`, see that
+  directory's `VENDORED.md` for what it actually is and how to replace it
+  for a real deployment).
+- [`auth::AuthKey::from_seed`] derives a secp256k1 identity from the
+  caller's BIP39 seed; [`Scheduler::register`]/[`Scheduler::recover`] use it
+  to sign a server challenge and request a device certificate via CSR
+  (`auth::generate_device_csr`) - ember's whole proof that the caller
+  controls the seed it claims to.
+- Everything after - node-lifecycle calls and the `cln.Node` proxy -
+  reconnects with the returned device identity instead; no seed needed
+  again.
 
 ## Example
 
 ```rust,no_run
+use ember_client::auth::AuthKey;
 use ember_client::EmberClient;
 
 # async fn run() -> Result<(), ember_client::Error> {
-let client = EmberClient::connect("http://localhost:50051", Some("user-123".to_string())).await?;
+let app_identity = ember_client::default_app_identity();
+let app_client = EmberClient::connect("https://localhost:50051", app_identity.clone()).await?;
 
-let scheduler = client.scheduler();
-let registered = scheduler.register("regtest", "").await?;
-let node = scheduler.node().await?;
-# let _ = (registered, node);
+let seed = [0u8; 32]; // Mnemonic::to_seed(passphrase), in practice.
+let auth_key = AuthKey::from_seed(&seed)?;
+let registered = app_client
+    .scheduler()
+    .register(&auth_key, "regtest", "my twenty four word mnemonic ...", "", app_identity.ca_cert_pem)
+    .await?;
+
+// Reconnect with the device identity just issued - no seed needed again.
+let node_client = EmberClient::connect("https://localhost:50051", registered.device_identity).await?;
+let node = node_client.scheduler().node().await?;
+# let _ = node;
 # Ok(())
 # }
 ```
 
 See `examples/basic.rs` for a runnable version.
-
-## TLS
-
-ember-server's external listener has no TLS of its own as of writing - plain
-h2c, matching `EmberClient::connect`. If/when it does, enable the `tls`
-feature and use `EmberClient::connect_tls` instead.
 
 ## Updating the vendored protos
 
