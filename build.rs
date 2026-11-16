@@ -5,7 +5,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(false)
         .build_client(true)
         .compile_protos(
-            &["proto/cln/node.proto", "proto/ember/scheduler.proto"],
+            &[
+                "proto/cln/node.proto",
+                "proto/cln/assetswap.proto",
+                "proto/ember/scheduler.proto",
+                "proto/ember/assets.proto",
+            ],
             &["proto/cln", "proto/ember"],
         )?;
 

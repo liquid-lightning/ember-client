@@ -4,12 +4,24 @@
 
 pub mod cln {
     tonic::include_proto!("cln");
+
+    pub mod assetswap {
+        pub mod v1 {
+            tonic::include_proto!("cln.assetswap.v1");
+        }
+    }
 }
 
 pub mod ember {
     pub mod scheduler {
         pub mod v1 {
             tonic::include_proto!("ember.scheduler.v1");
+        }
+    }
+
+    pub mod assets {
+        pub mod v1 {
+            tonic::include_proto!("ember.assets.v1");
         }
     }
 }

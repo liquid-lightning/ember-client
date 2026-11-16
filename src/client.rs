@@ -3,8 +3,9 @@ use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 use crate::error::Error;
 use crate::node::ClnClient;
 use crate::pb::cln::node_client::NodeClient;
+use crate::pb::ember::assets::v1::assets_client::AssetsClient as GeneratedAssetsClient;
 use crate::pb::ember::scheduler::v1::scheduler_client::SchedulerClient as GeneratedSchedulerClient;
-use crate::Scheduler;
+use crate::{Assets, Scheduler};
 
 /// Transport ember-client's generated clients run over: a plain `Channel`.
 /// Caller identity comes entirely from the mTLS client certificate
@@ -18,6 +19,10 @@ pub type Transport = Channel;
 /// lifecycle - register/recover/status/list/delete. See [`Scheduler`] for an
 /// ergonomic wrapper over this.
 pub type SchedulerClient = GeneratedSchedulerClient<Transport>;
+
+/// gRPC client for ember's own schema (`ember.assets.v1.Assets`):
+/// cross-asset payments. See [`Assets`] for an ergonomic wrapper over this.
+pub type AssetsClient = GeneratedAssetsClient<Transport>;
 
 /// A client certificate + key + the CA cert to verify ember-server's own
 /// certificate against — either the baked-in pre-auth "app" identity (see
@@ -82,5 +87,18 @@ impl EmberClient {
     /// [`Self::node_client`] - see [`Scheduler`].
     pub fn scheduler(&self) -> Scheduler {
         Scheduler::new(self.clone())
+    }
+
+    /// Returns a fresh client for ember's own Assets service
+    /// (`ember.assets.v1.Assets`: cross-asset payments), sharing this
+    /// connection.
+    pub fn assets_client(&self) -> AssetsClient {
+        GeneratedAssetsClient::new(self.channel.clone())
+    }
+
+    /// Returns an ergonomic wrapper over [`Self::assets_client`] - see
+    /// [`Assets`].
+    pub fn assets(&self) -> Assets {
+        Assets::new(self.clone())
     }
 }

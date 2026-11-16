@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package ember.assets.v1;
+
+// ember's own client-facing contract for cross-asset payments - not a
+// mirror of CLN's own RPC set (that's proto/cln/node.proto, generated
+// from cln-grpc's own built-in methods). AssetInvoice/QuoteAssetInvoice/
+// PayAssetInvoice are implemented by proxying to the per-node
+// cln.assetswap.v1.AssetSwap service (infra/images/cln's patched
+// cln-grpc, see bin/server/src/assets_service.rs) the same way every CLN
+// RPC is proxied to the caller's own node in node_proxy.rs. ListAssets is
+// pure server-side config (bin/server/src/config.rs's SUPPORTED_ASSETS) -
+// no per-node call at all.
+service Assets {
+	rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse) {}
+	rpc AssetInvoice(AssetInvoiceRequest) returns (AssetInvoiceResponse) {}
+	rpc QuoteAssetInvoice(QuoteAssetInvoiceRequest) returns (QuoteAssetInvoiceResponse) {}
+	rpc PayAssetInvoice(PayAssetInvoiceRequest) returns (PayAssetInvoiceResponse) {}
+	// Proxies to the caller's own node's cln.assetswap.v1.AssetSwap::
+	// ListAssetBalances - per-node, like AssetInvoice/QuoteAssetInvoice/
+	// PayAssetInvoice, not server config like ListAssets.
+	rpc GetAssetBalances(GetAssetBalancesRequest) returns (GetAssetBalancesResponse) {}
+	// Pure server config, like ListAssets - no per-node call, no device
+	// identity required. Empty node_id/addr when unconfigured (the
+	// default); set via `ember-cli set-swap-service`.
+	rpc GetSwapService(GetSwapServiceRequest) returns (GetSwapServiceResponse) {}
+}
+
+message Asset {
+	// Opaque id (e.g. a Liquid asset id, or "lbtc") - never interpreted,
+	// just carried through to assetswap-plugin/pricetiers-plugin, which
+	// use the same convention themselves.
+	string id = 1;
+	string symbol = 2;
+	string name = 3;
+}
+
+message ListAssetsRequest {}
+
+message ListAssetsResponse {
+	repeated Asset assets = 1;
+}
+
+message AssetInvoiceRequest {
+	string asset = 1;
+	uint64 amount_msat = 2;
+	string label = 3;
+	string description = 4;
+}
+
+message AssetInvoiceResponse {
+	// The self-contained wrapper string to share/scan - not a bare
+	// bolt11, since BOLT11 has no asset field at all (see
+	// CROSS_ASSET_SWAP.md). bolt11/payment_hash below are decoded
+	// server-side from the same wrapper for display convenience, not
+	// returned separately on the wire by the underlying plugin RPC.
+	string wrapped = 1;
+	string bolt11 = 2;
+	string payment_hash = 3;
+}
+
+message QuoteAssetInvoiceRequest {
+	string wrapped = 1;
+}
+
+message AssetQuoteTier {
+	string name = 1;
+	uint64 rate_ppm = 2;
+	uint64 from_amount_msat = 3;
+}
+
+message QuoteAssetInvoiceResponse {
+	string from_asset = 1;
+	uint64 rate_ppm = 2;
+	uint64 fee_base_msat = 3;
+	repeated AssetQuoteTier tiers = 4;
+}
+
+message PayAssetInvoiceRequest {
+	string wrapped = 1;
+	optional string tier = 2;
+	optional string from_asset = 3;
+	optional uint64 from_amount_msat = 4;
+}
+
+message PayAssetInvoiceResponse {
+	string payment_preimage = 1;
+	string status = 2;
+}
+
+message GetAssetBalancesRequest {}
+
+message AssetBalance {
+	string asset = 1;
+	uint64 channel_balance_msat = 2;
+	uint64 onchain_balance_msat = 3;
+}
+
+message GetAssetBalancesResponse {
+	repeated AssetBalance balances = 1;
+}
+
+message GetSwapServiceRequest {}
+
+message GetSwapServiceResponse {
+	// Both empty when unconfigured.
+	optional string node_id = 1;
+	optional string addr = 2;
+}

@@ -46,6 +46,7 @@
 //! # }
 //! ```
 
+mod assets;
 pub mod auth;
 mod client;
 mod error;
@@ -54,7 +55,8 @@ mod scheduler;
 
 pub mod pb;
 
-pub use client::{ClientTlsIdentity, EmberClient, SchedulerClient, Transport};
+pub use assets::Assets;
+pub use client::{AssetsClient, ClientTlsIdentity, EmberClient, SchedulerClient, Transport};
 pub use error::Error;
 pub use scheduler::{RecoverOutcome, RegisterOutcome, Scheduler};
 

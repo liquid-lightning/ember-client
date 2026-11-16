@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+// A small, separate grpc service alongside cln-grpc's own `cln.Node` -
+// deliberately not grafted onto node.proto (see
+// infra/images/cln/Dockerfile's header comment): these 3 methods aren't
+// from CLN's own compiled-in RPC set at all, they're assetswap-plugin's
+// own plugin-registered methods, reached here via ClnRpc::call_raw the
+// same way the plugin itself calls pricetiers-plugin's `pricetiers`
+// method. Applied to this vendored copy of cln-grpc at image-build time -
+// see infra/images/cln/Dockerfile.
+package cln.assetswap.v1;
+
+service AssetSwap {
+	rpc AssetInvoice(AssetInvoiceRequest) returns (AssetInvoiceResponse) {}
+	rpc QuoteAssetInvoice(QuoteAssetInvoiceRequest) returns (QuoteAssetInvoiceResponse) {}
+	rpc PayAssetInvoice(PayAssetInvoiceRequest) returns (PayAssetInvoiceResponse) {}
+	rpc ListAssetBalances(ListAssetBalancesRequest) returns (ListAssetBalancesResponse) {}
+}
+
+message AssetInvoiceRequest {
+	uint64 amount_msat = 1;
+	string label = 2;
+	string description = 3;
+	// This node's native coin (e.g. "lbtc") or the id of the asset to be
+	// paid in - assetswap-plugin's own `assetinvoice` RPC parameter.
+	string asset = 4;
+}
+
+message AssetInvoiceResponse {
+	// The self-contained wrapper string assetswap-plugin's own
+	// `assetinvoice` RPC returns (bolt11 + payment_hash + asset +
+	// amount_msat, base64-encoded) - share/scan this, not a bare bolt11,
+	// since BOLT11 itself has no asset field.
+	string wrapped = 1;
+}
+
+message QuoteAssetInvoiceRequest {
+	string wrapped = 1;
+}
+
+message QuoteAssetTier {
+	string name = 1;
+	uint64 rate_ppm = 2;
+	uint64 from_amount_msat = 3;
+}
+
+message QuoteAssetInvoiceResponse {
+	string from_asset = 1;
+	uint64 rate_ppm = 2;
+	uint64 fee_base_msat = 3;
+	repeated QuoteAssetTier tiers = 4;
+}
+
+message PayAssetInvoiceRequest {
+	string wrapped = 1;
+	optional string tier = 2;
+	// The caller's own choice of which asset to pay with - see
+	// assetswap-plugin's pay.rs doc comment on payassetinvoice's
+	// from_asset/from_amount_msat semantics.
+	optional string from_asset = 3;
+	optional uint64 from_amount_msat = 4;
+}
+
+message PayAssetInvoiceResponse {
+	string payment_preimage = 1;
+	string status = 2;
+}
+
+message ListAssetBalancesRequest {}
+
+message AssetBalance {
+	// "lbtc" for the node's native coin, else the issued asset's id.
+	string asset = 1;
+	uint64 channel_balance_msat = 2;
+	// Always 0 today: Liquid on-chain UTXOs aren't asset-tagged by
+	// listfunds on this fork (see assetswap-plugin's balances.rs).
+	uint64 onchain_balance_msat = 3;
+}
+
+message ListAssetBalancesResponse {
+	repeated AssetBalance balances = 1;
+}
