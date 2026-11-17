@@ -9,8 +9,8 @@ package ember.assets.v1;
 // cln.assetswap.v1.AssetSwap service (infra/images/cln's patched
 // cln-grpc, see bin/server/src/assets_service.rs) the same way every CLN
 // RPC is proxied to the caller's own node in node_proxy.rs. ListAssets is
-// pure server-side config (bin/server/src/config.rs's SUPPORTED_ASSETS) -
-// no per-node call at all.
+// pure server-side data (bin/server/src/config.rs's SUPPORTED_ASSETS plus
+// each asset's price pair from the DB) - no per-node call at all.
 service Assets {
 	rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse) {}
 	rpc AssetInvoice(AssetInvoiceRequest) returns (AssetInvoiceResponse) {}
@@ -33,6 +33,19 @@ message Asset {
 	string id = 1;
 	string symbol = 2;
 	string name = 3;
+	// This asset's reference price, from ember's price pairs (`ember-cli
+	// set-price-pair`, the same table every node's pricetiers-plugin
+	// polls) - unset when no pair prices it.
+	optional AssetPrice price = 4;
+}
+
+// The pair whose to_asset is this asset: rate_ppm msat of from_asset
+// (normally "lbtc") per 1_000_000 msat of this asset, plus a flat
+// fee_base_msat per swap.
+message AssetPrice {
+	string from_asset = 1;
+	uint64 rate_ppm = 2;
+	uint64 fee_base_msat = 3;
 }
 
 message ListAssetsRequest {}
