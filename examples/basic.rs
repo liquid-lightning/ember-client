@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .scheduler()
         .register(
             &auth_key,
-            "regtest",
+            "liquid-testnet",
             mnemonic.to_string(),
             "",
             app_identity.ca_cert_pem.clone(),
@@ -46,8 +46,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // No seed needed again from here on - just the device identity.
     let node_client = EmberClient::connect(addr, registered.device_identity).await?;
-    let mut node = node_client.scheduler().node().await?;
-    let info = node.getinfo(GetinfoRequest {}).await?.into_inner();
+
+    // Register returns as soon as the node's StatefulSet exists, not once
+    // lightningd is up - the first proxied call races the pod's startup and
+    // gets Unavailable ("connecting to node: transport error"). Retry until
+    // CLN answers.
+    const ATTEMPTS: u32 = 30;
+    const DELAY: std::time::Duration = std::time::Duration::from_secs(5);
+    let mut attempt = 1;
+    let info = loop {
+        let mut node = node_client.scheduler().node().await?;
+        match node.getinfo(GetinfoRequest {}).await {
+            Ok(resp) => break resp.into_inner(),
+            Err(status) if status.code() == tonic::Code::Unavailable && attempt < ATTEMPTS => {
+                eprintln!(
+                    "node not ready yet ({}), retry {attempt}/{ATTEMPTS} in {}s",
+                    status.message(),
+                    DELAY.as_secs()
+                );
+                attempt += 1;
+                tokio::time::sleep(DELAY).await;
+            }
+            Err(status) => return Err(status.into()),
+        }
+    };
     println!("{info:#?}");
 
     Ok(())
