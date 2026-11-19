@@ -37,6 +37,11 @@ message Asset {
 	// set-price-pair`, the same table every node's pricetiers-plugin
 	// polls) - unset when no pair prices it.
 	optional AssetPrice price = 4;
+	// Decimal places of one whole unit (Liquid asset precision): amounts
+	// stay in msat (1000 msat per base unit), shown as
+	// base_units / 10^precision. Unset from servers that predate it -
+	// clients assume 8 then.
+	optional uint32 precision = 5;
 }
 
 // The pair whose to_asset is this asset: rate_ppm msat of from_asset
