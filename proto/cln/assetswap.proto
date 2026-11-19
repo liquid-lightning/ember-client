@@ -15,6 +15,19 @@ service AssetSwap {
 	rpc QuoteAssetInvoice(QuoteAssetInvoiceRequest) returns (QuoteAssetInvoiceResponse) {}
 	rpc PayAssetInvoice(PayAssetInvoiceRequest) returns (PayAssetInvoiceResponse) {}
 	rpc ListAssetBalances(ListAssetBalancesRequest) returns (ListAssetBalancesResponse) {}
+	// The node's on-chain asset wallet: its own elementsd wallet
+	// (assetchan.py's assetchan-elements-wallet, one per node). CLN's own
+	// wallet only ever holds L-BTC - it skips every other asset's outputs.
+	rpc NewAssetAddress(NewAssetAddressRequest) returns (NewAssetAddressResponse) {}
+	rpc SendAsset(SendAssetRequest) returns (SendAssetResponse) {}
+	// An asset channel funded from that same wallet (assetchan-open).
+	rpc OpenAssetChannel(OpenAssetChannelRequest) returns (OpenAssetChannelResponse) {}
+	// That wallet's unspent outputs (assetchan-listunspent), unconfirmed
+	// included.
+	rpc ListAssetUtxos(ListAssetUtxosRequest) returns (ListAssetUtxosResponse) {}
+	// That wallet's transaction history (assetchan-listtransactions): per
+	// tx the net change per asset.
+	rpc ListAssetTransactions(ListAssetTransactionsRequest) returns (ListAssetTransactionsResponse) {}
 }
 
 message AssetInvoiceRequest {
@@ -72,11 +85,105 @@ message AssetBalance {
 	// "lbtc" for the node's native coin, else the issued asset's id.
 	string asset = 1;
 	uint64 channel_balance_msat = 2;
-	// Always 0 today: Liquid on-chain UTXOs aren't asset-tagged by
-	// listfunds on this fork (see assetswap-plugin's balances.rs).
+	// What the node's elementsd asset wallet holds in this asset
+	// (assetchan-funds). Always 0 for "lbtc": the node's own L-BTC is in
+	// CLN's wallet (listfunds), not here.
 	uint64 onchain_balance_msat = 3;
 }
 
 message ListAssetBalancesResponse {
 	repeated AssetBalance balances = 1;
+	// L-BTC in the asset wallet - what pays on-chain fees for asset sends
+	// and asset channel opens (Liquid fees are always L-BTC). Topped up
+	// by sending L-BTC to a NewAssetAddress address.
+	uint64 asset_wallet_lbtc_msat = 2;
+}
+
+message NewAssetAddressRequest {}
+
+message NewAssetAddressResponse {
+	// Unconfidential, so what arrives is explicit and can fund an asset
+	// channel directly.
+	string address = 1;
+}
+
+message SendAssetRequest {
+	string address = 1;
+	// An issued asset's id.
+	string asset = 2;
+	// 1000 msat per base unit of the asset, as everywhere else here.
+	uint64 amount_msat = 3;
+}
+
+message SendAssetResponse {
+	string txid = 1;
+}
+
+message OpenAssetChannelRequest {
+	// A peer this node is already connected to.
+	string peer_id = 1;
+	string asset = 2;
+	uint64 amount_msat = 3;
+	// L-BTC put next to the asset in the channel for its on-chain fees;
+	// unset = assetchan-default-fee-reserve.
+	optional uint64 fee_reserve_sat = 4;
+	bool announce = 5;
+}
+
+message OpenAssetChannelResponse {
+	string txid = 1;
+	string channel_id = 2;
+}
+
+message ListAssetUtxosRequest {}
+
+message AssetUtxo {
+	string txid = 1;
+	uint32 vout = 2;
+	// "lbtc" for L-BTC (the wallet's fee balance), else the asset's id.
+	string asset = 3;
+	// 1000 msat per base unit, as everywhere else here.
+	uint64 amount_msat = 4;
+	string address = 5;
+	// 0 = unconfirmed (in the mempool).
+	uint32 confirmations = 6;
+}
+
+message ListAssetUtxosResponse {
+	repeated AssetUtxo utxos = 1;
+}
+
+message ListAssetTransactionsRequest {}
+
+message AssetTxAmount {
+	// "lbtc" for L-BTC, else the asset's id.
+	string asset = 1;
+	// Signed net change for the wallet, 1000 msat per base unit.
+	int64 amount_msat = 2;
+}
+
+message AssetWalletTx {
+	string txid = 1;
+	// 0 = unconfirmed.
+	uint32 blockheight = 2;
+	uint64 time = 3;
+	// Net change per asset, the fee excluded.
+	repeated AssetTxAmount amounts = 4;
+	// L-BTC fee this wallet paid for the tx (0 if it didn't fund it).
+	uint64 fee_msat = 5;
+	// Each wallet entry: what moved to/from which address (ours for a
+	// receive, the destination for a send).
+	repeated AssetTxOutput outputs = 6;
+}
+
+message AssetTxOutput {
+	// "lbtc" for L-BTC, else the asset's id.
+	string asset = 1;
+	// Signed, 1000 msat per base unit.
+	int64 amount_msat = 2;
+	string address = 3;
+}
+
+message ListAssetTransactionsResponse {
+	repeated AssetWalletTx transactions = 1;
 }

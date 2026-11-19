@@ -24,6 +24,19 @@ service Assets {
 	// identity required. Empty node_id/addr when unconfigured (the
 	// default); set via `ember-cli set-swap-service`.
 	rpc GetSwapService(GetSwapServiceRequest) returns (GetSwapServiceResponse) {}
+	// The caller's own on-chain asset wallet (its node's elementsd wallet,
+	// see cln.assetswap.v1): per-node, proxied like GetAssetBalances.
+	// Balances, including the wallet's L-BTC for fees, come from
+	// GetAssetBalances.
+	rpc NewAssetAddress(NewAssetAddressRequest) returns (NewAssetAddressResponse) {}
+	rpc SendAsset(SendAssetRequest) returns (SendAssetResponse) {}
+	rpc OpenAssetChannel(OpenAssetChannelRequest) returns (OpenAssetChannelResponse) {}
+	// The caller's own asset wallet's unspent outputs (unconfirmed
+	// included) - per-node, proxied like GetAssetBalances.
+	rpc ListAssetUtxos(ListAssetUtxosRequest) returns (ListAssetUtxosResponse) {}
+	// That wallet's transaction history (assetchan-listtransactions): per
+	// tx the net change per asset.
+	rpc ListAssetTransactions(ListAssetTransactionsRequest) returns (ListAssetTransactionsResponse) {}
 }
 
 message Asset {
@@ -116,6 +129,41 @@ message AssetBalance {
 
 message GetAssetBalancesResponse {
 	repeated AssetBalance balances = 1;
+	// L-BTC in the asset wallet: pays on-chain fees for SendAsset and
+	// OpenAssetChannel. Topped up by sending L-BTC to a NewAssetAddress
+	// address.
+	uint64 asset_wallet_lbtc_msat = 2;
+}
+
+message NewAssetAddressRequest {}
+
+message NewAssetAddressResponse {
+	string address = 1;
+}
+
+message SendAssetRequest {
+	string address = 1;
+	string asset = 2;
+	// 1000 msat per base unit of the asset; must be whole units.
+	uint64 amount_msat = 3;
+}
+
+message SendAssetResponse {
+	string txid = 1;
+}
+
+message OpenAssetChannelRequest {
+	// Must already be connected (ConnectPeer via the node proxy).
+	string peer_id = 1;
+	string asset = 2;
+	uint64 amount_msat = 3;
+	optional uint64 fee_reserve_sat = 4;
+	bool announce = 5;
+}
+
+message OpenAssetChannelResponse {
+	string txid = 1;
+	string channel_id = 2;
 }
 
 message GetSwapServiceRequest {}
@@ -124,4 +172,57 @@ message GetSwapServiceResponse {
 	// Both empty when unconfigured.
 	optional string node_id = 1;
 	optional string addr = 2;
+}
+
+message ListAssetUtxosRequest {}
+
+message AssetUtxo {
+	string txid = 1;
+	uint32 vout = 2;
+	// "lbtc" for L-BTC (the wallet's fee balance), else the asset's id.
+	string asset = 3;
+	// 1000 msat per base unit.
+	uint64 amount_msat = 4;
+	string address = 5;
+	// 0 = unconfirmed.
+	uint32 confirmations = 6;
+}
+
+message ListAssetUtxosResponse {
+	repeated AssetUtxo utxos = 1;
+}
+
+message ListAssetTransactionsRequest {}
+
+message AssetTxAmount {
+	// "lbtc" for L-BTC, else the asset's id.
+	string asset = 1;
+	// Signed net change for the wallet, 1000 msat per base unit.
+	int64 amount_msat = 2;
+}
+
+message AssetWalletTx {
+	string txid = 1;
+	// 0 = unconfirmed.
+	uint32 blockheight = 2;
+	uint64 time = 3;
+	// Net change per asset, the fee excluded.
+	repeated AssetTxAmount amounts = 4;
+	// L-BTC fee this wallet paid for the tx (0 if it didn't fund it).
+	uint64 fee_msat = 5;
+	// Each wallet entry: what moved to/from which address (ours for a
+	// receive, the destination for a send).
+	repeated AssetTxOutput outputs = 6;
+}
+
+message AssetTxOutput {
+	// "lbtc" for L-BTC, else the asset's id.
+	string asset = 1;
+	// Signed, 1000 msat per base unit.
+	int64 amount_msat = 2;
+	string address = 3;
+}
+
+message ListAssetTransactionsResponse {
+	repeated AssetWalletTx transactions = 1;
 }
