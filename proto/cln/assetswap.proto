@@ -49,6 +49,9 @@ message AssetInvoiceResponse {
 
 message QuoteAssetInvoiceRequest {
 	string wrapped = 1;
+	// assetswap-plugin's quoteassetinvoice `from_asset`: price paying in
+	// this asset. Unset: the first pair configured for the invoice's asset.
+	optional string from_asset = 2;
 }
 
 message QuoteAssetTier {

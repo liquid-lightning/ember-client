@@ -64,16 +64,20 @@ impl Assets {
     /// or a peer) would cost, without paying it - only returns real numbers
     /// if this node happens to carry matching pricing config of its own
     /// (see the underlying plugin's own doc comment); otherwise fails the
-    /// same way an unsupported pair would.
+    /// same way an unsupported pair would. `from_asset` prices paying in
+    /// that asset ("lbtc" or an issued asset id); `None` takes the first
+    /// pair configured for the invoice's asset.
     pub async fn quote_invoice(
         &self,
         wrapped: impl Into<String>,
+        from_asset: Option<String>,
     ) -> Result<QuoteAssetInvoiceResponse, Error> {
         Ok(self
             .ember
             .assets_client()
             .quote_asset_invoice(QuoteAssetInvoiceRequest {
                 wrapped: wrapped.into(),
+                from_asset,
             })
             .await?
             .into_inner())
