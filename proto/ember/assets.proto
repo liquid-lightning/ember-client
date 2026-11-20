@@ -167,6 +167,9 @@ message OpenAssetChannelRequest {
 	uint64 amount_msat = 3;
 	optional uint64 fee_reserve_sat = 4;
 	bool announce = 5;
+	// Dual-funded (open_channel2): the swap service puts in as much of the
+	// asset as we do. Both nodes need experimental-dual-fund.
+	bool dual_fund = 6;
 }
 
 message OpenAssetChannelResponse {

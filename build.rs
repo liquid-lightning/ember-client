@@ -1,6 +1,9 @@
 use std::env::var;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // The rerun-if-env-changed lines below replace cargo's default (rerun on
+    // any change in the package), so the protos must be named explicitly.
+    println!("cargo:rerun-if-changed=proto");
     tonic_prost_build::configure()
         .build_server(false)
         .build_client(true)

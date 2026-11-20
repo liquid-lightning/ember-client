@@ -128,6 +128,10 @@ message OpenAssetChannelRequest {
 	// unset = assetchan-default-fee-reserve.
 	optional uint64 fee_reserve_sat = 4;
 	bool announce = 5;
+	// Open it with open_channel2 (both nodes run experimental-dual-fund),
+	// where the peer may put some of the asset in too: the swap service
+	// matches what we put in (assetchan-open's dual_fund).
+	bool dual_fund = 6;
 }
 
 message OpenAssetChannelResponse {

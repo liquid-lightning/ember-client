@@ -205,6 +205,9 @@ impl Assets {
     /// Opens a channel in `asset` to `peer_id` (already connected), funded
     /// from the asset wallet, with `fee_reserve_sat` L-BTC beside it for
     /// its on-chain fees (`None`: the node's default).
+    /// With `dual_fund`, it's opened with open_channel2, where the peer may
+    /// put some of the asset in too (the swap service matches the amount);
+    /// both nodes need `experimental-dual-fund`.
     pub async fn open_channel(
         &self,
         peer_id: impl Into<String>,
@@ -212,6 +215,7 @@ impl Assets {
         amount_msat: u64,
         fee_reserve_sat: Option<u64>,
         announce: bool,
+        dual_fund: bool,
     ) -> Result<OpenAssetChannelResponse, Error> {
         Ok(self
             .ember
@@ -222,6 +226,7 @@ impl Assets {
                 amount_msat,
                 fee_reserve_sat,
                 announce,
+                dual_fund,
             })
             .await?
             .into_inner())
