@@ -2,7 +2,8 @@ use crate::client::EmberClient;
 use crate::error::Error;
 use crate::pb::ember::assets::v1::{
     Asset, AssetInvoiceRequest, AssetInvoiceResponse, GetAssetBalancesRequest,
-    AssetUtxo, AssetWalletTx, GetAssetBalancesResponse, ListAssetTransactionsRequest, GetSwapServiceRequest, ListAssetUtxosRequest, ListAssetsRequest, NewAssetAddressRequest,
+    AssetUtxo, AssetWalletTx, ClaimFaucetRequest, ClaimFaucetResponse, GetAssetBalancesResponse,
+    GetFaucetRequest, GetFaucetResponse, ListAssetTransactionsRequest, GetSwapServiceRequest, ListAssetUtxosRequest, ListAssetsRequest, NewAssetAddressRequest,
     OpenAssetChannelRequest, OpenAssetChannelResponse, PayAssetInvoiceRequest,
     PayAssetInvoiceResponse, QuoteAssetInvoiceRequest, QuoteAssetInvoiceResponse,
     SendAssetRequest,
@@ -113,6 +114,30 @@ impl Assets {
             .ember
             .assets_client()
             .get_asset_balances(GetAssetBalancesRequest {})
+            .await?
+            .into_inner())
+    }
+
+    /// The testnet faucet for `asset` ("lbtc" or an issued asset id): what
+    /// a claim pays, what's left, and when this node may claim next.
+    /// `enabled` is false when there's no faucet for it.
+    pub async fn faucet(&self, asset: &str) -> Result<GetFaucetResponse, Error> {
+        Ok(self
+            .ember
+            .assets_client()
+            .get_faucet(GetFaucetRequest { asset: asset.to_string() })
+            .await?
+            .into_inner())
+    }
+
+    /// Claims `asset` from the faucet into this node: an issued asset into
+    /// its asset wallet, L-BTC into CLN's wallet. Fails with
+    /// FAILED_PRECONDITION while the node is still cooling down.
+    pub async fn claim_faucet(&self, asset: &str) -> Result<ClaimFaucetResponse, Error> {
+        Ok(self
+            .ember
+            .assets_client()
+            .claim_faucet(ClaimFaucetRequest { asset: asset.to_string() })
             .await?
             .into_inner())
     }

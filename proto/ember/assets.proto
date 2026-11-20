@@ -37,6 +37,14 @@ service Assets {
 	// That wallet's transaction history (assetchan-listtransactions): per
 	// tx the net change per asset.
 	rpc ListAssetTransactions(ListAssetTransactionsRequest) returns (ListAssetTransactionsResponse) {}
+	// Testnet faucet (`ember-cli set-faucet`): what claiming `asset` pays
+	// out, what's left, and when the caller's node may claim next.
+	rpc GetFaucet(GetFaucetRequest) returns (GetFaucetResponse) {}
+	// Pays the faucet's amount of `asset` to the caller's own node: an
+	// issued asset from ember's elementsd faucet wallet into the node's
+	// asset wallet, L-BTC from liquidtestnet.com into its CLN wallet.
+	// FAILED_PRECONDITION while the node is still cooling down.
+	rpc ClaimFaucet(ClaimFaucetRequest) returns (ClaimFaucetResponse) {}
 }
 
 message Asset {
@@ -225,4 +233,37 @@ message AssetTxOutput {
 
 message ListAssetTransactionsResponse {
 	repeated AssetWalletTx transactions = 1;
+}
+
+message GetFaucetRequest {
+	// "lbtc" or an issued asset id.
+	string asset = 1;
+}
+
+message GetFaucetResponse {
+	// False when no faucet is set for the asset; nothing else is set then.
+	bool enabled = 1;
+	// What one claim pays out, 1000 msat per base unit.
+	uint64 amount_msat = 2;
+	// What the faucet still holds; unset when it couldn't be read.
+	optional uint64 balance_msat = 3;
+	// Cooldown between two claims by the same node.
+	uint64 interval_secs = 4;
+	// Unix time the caller's node may claim again; 0 = now.
+	uint64 next_claim_at = 5;
+	// The caller's node is exempt from the cooldown.
+	bool unlimited = 6;
+}
+
+message ClaimFaucetRequest {
+	string asset = 1;
+}
+
+message ClaimFaucetResponse {
+	string txid = 1;
+	uint64 amount_msat = 2;
+	// Where it was sent: the node's asset wallet or, for L-BTC, CLN's.
+	string address = 3;
+	// Unix time the node may claim again; 0 = now (exempt).
+	uint64 next_claim_at = 4;
 }
